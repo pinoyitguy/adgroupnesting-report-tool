@@ -39,9 +39,9 @@ function Open-Form {
                 <Label Grid.Column="0" Grid.Row="0" Content="User UPN:" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="20 0 0 0" />
                 <TextBox Name="txtUser" Grid.Column="1" Grid.Row="0" Grid.ColumnSpan="3" Height="25" Margin="0 0 20 0" VerticalContentAlignment="Center" Background="#F0F0F0"/>
 
-                <!--GDC Controls-->
-                <Label Grid.Column="0" Grid.Row="1" Content="GDC Server:" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="20 0 0 0" />
-                <TextBox Name="txtGdc" Grid.Column="1" Grid.Row="1" Height="25" VerticalContentAlignment="Center" Background="#F0F0F0"/>
+                <!--GC Controls-->
+                <Label Grid.Column="0" Grid.Row="1" Content="GC Server:" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="20 0 0 0" />
+                <TextBox Name="txtGc" Grid.Column="1" Grid.Row="1" Height="25" VerticalContentAlignment="Center" Background="#F0F0F0"/>
 
                 <!--Mode Controls-->
                 <RadioButton Name="rbtMember" Grid.Column="2" Grid.Row="1" Content="Member" VerticalAlignment="Center" HorizontalAlignment="Right"/>
@@ -217,7 +217,7 @@ function Open-Form {
             $syncHash.stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
             $syncHash.Enable = $false
             $syncHash.Username = $syncHash.txtUser.Text
-            $syncHash.GDC = "$($syncHash.txtGdc.Text):3268"
+            $syncHash.GC = "$($syncHash.txtGc.Text):3268"
             $syncHash.treeNest.Items.Clear()
             $syncHash.rtbStat.Document.Blocks.Clear()
             $syncHash.TotalNestedGroupCount = 0
@@ -291,13 +291,13 @@ function Open-Form {
                         try {
                             $srv = Get-FQDN -DistinguishedName $Group
                             $domainName = ($srv -split '\.')[0]
-                            $parentGroup = Get-ADGroup $Group -Properties $syncHash.Mode -Server $syncHash.GDC -ErrorAction Stop
+                            $parentGroup = Get-ADGroup $Group -Properties $syncHash.Mode -Server $syncHash.GC -ErrorAction Stop
                             $parentName = $parentGroup.Name
                             [array]$parent = $parentGroup | Select-Object -ExpandProperty $syncHash.Mode | Sort-Object
                             if($parent.Count -gt 0) {
                                 foreach($member in $parent) {
                                     try {
-                                        $childGroup = Get-AdGroup -Identity $member -Properties $syncHash.Mode -Server $syncHash.GDC
+                                        $childGroup = Get-AdGroup -Identity $member -Properties $syncHash.Mode -Server $syncHash.GC
                                         $groupName = $childGroup.Name
 
                                         if($childGroup.GroupCategory -eq "Distribution") {
@@ -307,7 +307,7 @@ function Open-Form {
                                         $parentCount = 0
                                         $childGroupArray = $childGroup | Select-Object -ExpandProperty $syncHash.Mode 
                                         foreach($child in $childGroupArray) {
-                                            $chld = Get-AdGroup -Identity $child -Server $syncHash.GDC
+                                            $chld = Get-AdGroup -Identity $child -Server $syncHash.GC
                                             if($chld.GroupCategory -eq "Security") {
                                                 $parentCount++
                                             }
@@ -361,10 +361,10 @@ function Open-Form {
 
                 #region MAIN
                 try {
-                    $user = Get-ADUser -Filter "UserPrincipalName -eq '$($syncHash.Username)'" -Server $syncHash.GDC -SearchBase ""
+                    $user = Get-ADUser -Filter "UserPrincipalName -eq '$($syncHash.Username)'" -Server $syncHash.GC -SearchBase ""
                     $xmlUser = ($user.Name -replace ' ','_') -replace '-','_'
                     #[array]$userGroups = Get-ADPrincipalGroupMembership $user.DistinguishedName -Server (Get-FQDN -DistinguishedName $user.DistinguishedName) -ErrorAction Stop | Where-Object GroupCategory -eq "Security"
-                    [array]$userGroupsTemp = Get-ADUser -Identity $user.DistinguishedName -Server $syncHash.GDC -Properties MemberOf | Select-Object -ExpandProperty MemberOf
+                    [array]$userGroupsTemp = Get-ADUser -Identity $user.DistinguishedName -Server $syncHash.GC -Properties MemberOf | Select-Object -ExpandProperty MemberOf
                     if($userGroupsTemp.Count -gt 0) {
                         $syncHash.Indetermine = $true
                         [xml]$syncHash.xml = New-Object System.Xml.XmlDocument
@@ -374,7 +374,7 @@ function Open-Form {
 
                         $userGroups = @()
                         foreach($usrGrp in $userGroupsTemp) {
-                            $groupInfo = Get-ADGroup -Identity $usrGrp -Server $syncHash.GDC
+                            $groupInfo = Get-ADGroup -Identity $usrGrp -Server $syncHash.GC
                             if($groupInfo.GroupCategory -eq "Security") {
                                 $userGroups += $groupInfo.DistinguishedName
                             }
@@ -384,7 +384,7 @@ function Open-Form {
                         Add-TreeItem -Name "[$($userGroups.Count)] $($user.Name)" -Parent "root" -Tag "$($user.Name)"
                         Start-Sleep 1
                         foreach($userGroup in $userGroups) {
-                            $userGroupDetails = Get-AdGroup -Identity $userGroup -Properties $syncHash.Mode -Server $syncHash.GDC
+                            $userGroupDetails = Get-AdGroup -Identity $userGroup -Properties $syncHash.Mode -Server $syncHash.GC
                             $userGroupName = $userGroupDetails.Name
 
                             Update-Status "Adding $userGroupName to root node..."
@@ -397,7 +397,7 @@ function Open-Form {
                             $parentCount = 0
                             foreach($child in $parentCountArr) {
                                 try {
-                                    $chld = Get-AdGroup -Identity $child -Server $syncHash.GDC
+                                    $chld = Get-AdGroup -Identity $child -Server $syncHash.GC
                                     if($chld.GroupCategory -eq "Security") {
                                         $parentCount++
                                     }
@@ -543,7 +543,7 @@ function Open-Form {
             
             $syncHash.prgStat.IsIndeterminate = $syncHash.Indetermine
             $syncHash.txtUser.IsEnabled = $syncHash.Enable
-            $syncHash.txtGdc.IsEnabled = $syncHash.Enable
+            $syncHash.txtGC.IsEnabled = $syncHash.Enable
             $syncHash.btnRun.IsEnabled = $syncHash.Enable
             $syncHash.btnBrowse.IsEnabled = $syncHash.Enable
         }
@@ -604,29 +604,29 @@ function Open-Form {
 
         $syncHash.txtUser.Add_KeyDown({
             if($_.Key -eq "Enter") {
-                if($syncHash.txtUser.Text -and $syncHash.txtGdc.Text) {
+                if($syncHash.txtUser.Text -and $syncHash.txtGC.Text) {
                     Get-AdGroupHierarchy
                 } else {
-                    [System.Windows.Forms.MessageBox]::Show("Please provide UPN and GDC",'Start Process','OK','Warning')
+                    [System.Windows.Forms.MessageBox]::Show("Please provide UPN and GC",'Start Process','OK','Warning')
                 }
             }
         })
 
-        $syncHash.txtGdc.Add_KeyDown({
+        $syncHash.txtGC.Add_KeyDown({
             if($_.Key -eq "Enter") {
-                if($syncHash.txtUser.Text -and $syncHash.txtGdc.Text) {
+                if($syncHash.txtUser.Text -and $syncHash.txtGC.Text) {
                     Get-AdGroupHierarchy
                 } else {
-                    [System.Windows.Forms.MessageBox]::Show("Please provide UPN and GDC",'Start Process','OK','Warning')
+                    [System.Windows.Forms.MessageBox]::Show("Please provide UPN and GC",'Start Process','OK','Warning')
                 }
             }
         })
 
         $syncHash.btnRun.Add_Click({
-            if($syncHash.txtUser.Text -and $syncHash.txtGdc.Text) {
+            if($syncHash.txtUser.Text -and $syncHash.txtGC.Text) {
                 Get-AdGroupHierarchy
             } else {
-                [System.Windows.Forms.MessageBox]::Show("Please provide UPN and GDC",'Start Process','OK','Warning')
+                [System.Windows.Forms.MessageBox]::Show("Please provide UPN and GC",'Start Process','OK','Warning')
             }
         })
 
